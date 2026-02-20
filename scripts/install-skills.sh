@@ -10,14 +10,27 @@ if [[ ! -d "$SRC_DIR" ]]; then
   exit 1
 fi
 
-mkdir -p "$TARGET_DIR"
-
-if command -v rsync >/dev/null 2>&1; then
-  rsync -a --delete "$SRC_DIR/" "$TARGET_DIR/"
-else
-  rm -rf "$TARGET_DIR"/*
-  cp -R "$SRC_DIR/"* "$TARGET_DIR/"
+# If target is already a symlink pointing to the right place, nothing to do
+if [[ -L "$TARGET_DIR" && "$(readlink "$TARGET_DIR")" == "$SRC_DIR" ]]; then
+  echo "Symlink already exists: $TARGET_DIR -> $SRC_DIR"
+  ls -1 "$TARGET_DIR" | sed 's/^/- /'
+  exit 0
 fi
 
-echo "Installed skills to: $TARGET_DIR"
+# Remove whatever is currently at the target path
+if [[ -L "$TARGET_DIR" ]]; then
+  echo "Removing stale symlink: $TARGET_DIR -> $(readlink "$TARGET_DIR")"
+  rm "$TARGET_DIR"
+elif [[ -d "$TARGET_DIR" ]]; then
+  echo "Removing existing skills directory: $TARGET_DIR"
+  rm -rf "$TARGET_DIR"
+fi
+
+# Ensure parent directory exists
+mkdir -p "$(dirname "$TARGET_DIR")"
+
+# Create symlink
+ln -s "$SRC_DIR" "$TARGET_DIR"
+
+echo "Linked skills: $TARGET_DIR -> $SRC_DIR"
 ls -1 "$TARGET_DIR" | sed 's/^/- /'
